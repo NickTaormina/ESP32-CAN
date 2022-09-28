@@ -59,20 +59,22 @@ void readFrames(){
     can_message_t message;
     //waits for message to be received
     while(1){
-        if (can_receive(&message, pdMS_TO_TICKS(10000)) == ESP_OK) {
+        
+        if (can_receive(&message, pdMS_TO_TICKS(99000)) == ESP_OK) {
         } else {
             printf("Failed to receive message\n");
-            return;
         }
 
         
         if (!(message.flags & CAN_MSG_FLAG_RTR) && filterOn == 0) {
+            printf("READ:");
             printf("[%d] | ", message.identifier);
             for (int i = 0; i < message.data_length_code; i++) {
                 printf(" %d ", message.data[i]);
             }
         } else if (!(message.flags & CAN_MSG_FLAG_RTR) && filterOn == 1){
             if(message.identifier == filter){
+                printf("READ:");
                 printf("[%d] | ", message.identifier);
                 for (int i = 0; i < message.data_length_code; i++) {
                 printf(" %d ", message.data[i]);
@@ -83,6 +85,12 @@ void readFrames(){
     }
 
 }
+void blinkLED(){
+    gpio_set_level(GPIO_NUM_2, 1);
+    vTaskDelay(20/portTICK_PERIOD_MS);
+    gpio_set_level(GPIO_NUM_2, 0);
+}
+
 void processCommand(uint8_t* bytes){
     can_message_t msg;
     int tmplen = strlen((char*) bytes);
@@ -91,8 +99,9 @@ void processCommand(uint8_t* bytes){
     memset(id, 0, 4);
     memset(id, 0, 27);
     int framePos = 0;
-    if(strstr((char*)bytes, "FRAME:") != 0){
+    if(strstr((char*)bytes, "WRITE:") != 0){
         uart_write_bytes(UART_NUM_0, "write frame: ", sizeof("write frame: ")-1);
+        blinkLED();
         uint8_t foundID = 0;
         int i = 0;
         while(i < tmplen-1){
@@ -122,7 +131,7 @@ void processCommand(uint8_t* bytes){
                         char str[4];
                         sprintf(str, "%zu", idByte);
                         uart_write_bytes(UART_NUM_0, (char*)str, t-1);
-                        //msg.identifier = id;
+                        msg.identifier = idByte;
                         i = i + t;
                         foundID = 1;
                         break;
@@ -142,6 +151,7 @@ void processCommand(uint8_t* bytes){
                         }
                     } else{
                         uint8_t byte = atoi((char*) tmp);
+                        msg.data[framePos] = byte;
                         memcpy(&frame[framePos], &byte, 1);
                         i = i+x;
                         framePos = framePos + 1;
@@ -163,14 +173,11 @@ void processCommand(uint8_t* bytes){
         int frameLen = strlen((char*) frame);
         char str[12];
         sprintf(str, "%zu", frameLen);
-        //uart_write_bytes(UART_NUM_0, (char*)str, 1);
-        //int frameLength = strlen((char*)frame);
+        int frameLength = strlen((char*)frame);
+        msg.data_length_code = frameLength;
         uart_write_bytes(UART_NUM_0, "\\", sizeof("\\")-1);
-        //uart_write_bytes(UART_NUM_0, (char*)frameLength, 5);
-
-
-        //uart_write_bytes(UART_NUM_0, (char*) msg.identifier, strlen((char*) id));
-        //uart_write_bytes(UART_NUM_0, (char*) msg.data, msg.data_length_code);
+        //can_transmit(&msg, 1000);
+        
     }
 
 }
@@ -200,8 +207,11 @@ void echo_task(){
 
                 }
             }
-
             data[len] = '\0';
+            if(strlen((char*)data) > 1900){
+                memset(data, 0, 2048);
+            }
+            
         }
     }
 }
@@ -248,8 +258,11 @@ void app_main() {
     ESP_ERROR_CHECK(uart_param_config(UART_NUM_0, &uart_config));
     ESP_ERROR_CHECK(uart_set_pin(UART_NUM_0, GPIO_NUM_1, GPIO_NUM_3, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 
-    xTaskCreate(echo_task, "echo task", 8192, NULL, 10, NULL);
-    //xTaskCreate(readFrames, "read frames", 8192, NULL, 1, NULL);
+    //xTaskCreate(echo_task, "echo task", 8192, NULL, 10, NULL);
+    xTaskCreatePinnedToCore(echo_task, "echo task", 8192, NULL, 1, NULL, 0);
+    xTaskCreatePinnedToCore(readFrames, "read frames", 8192, NULL, 2, NULL, 1);
+
+    
 
 
 }
