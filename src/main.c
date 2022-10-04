@@ -14,70 +14,14 @@
 uint32_t filter;
 uint8_t filterOn = 0;
 
-int char2int(char input)
-{
-  if(input >= '0' && input <= '9'){
-    return input - '0';
-    }
-  if(input >= 'A' && input <= 'F'){
-    return input - 'A' + 10;
-    }
-  if(input >= 'a' && input <= 'f'){
-    return input - 'a' + 10;
-    }
-
-    return 0;
-}
-//writes a frame to the car. TODO: customizable message
-void writeFrame(can_message_t msg, uint32_t identifier){
-    //Configure message to transmit
-    can_message_t message;
-    message.identifier = 0x000007E0;
-    message.data_length_code = 4;
-    for (int i = 0; i < 4; i++) {
-        message.data[i] = 0;
-    }
-
-    //Queue message for transmission
-    if (can_transmit(&message, pdMS_TO_TICKS(1000)) == ESP_OK) {
-        printf("Message queued for transmission\n");
-    } else {
-        printf("Failed to queue message for transmission\n");
-    }
-}
 
 //reads frames from the can receiver
 void readFrames(){
     can_message_t message;
-    //int x = 0;
+    int x = 0;
     //waits for message to be received
     while(1){
-        /*
-        if(x == 0){
-            uart_write_bytes(UART_NUM_0, " READ: [338] |  [97]  [146]  [0]  [137]  [146]  [1]  [42]  [140] ", sizeof(" READ: [642] |  [97]  [146]  [0]  [137]  [146]  [1]  [42]  [140] ")-1);
-            uart_write_bytes(UART_NUM_0, "\\", 2);
-            //printf(" READ: [642] |  [97]  [146]  [0]  [137]  [146]  [1]  [42]  [0] ");
-        } else if(x == 1){
-            uart_write_bytes(UART_NUM_0, " READ: [338] |  [97]  [146]  [0]  [137]  [146]  [17]  [42]  [132] ", sizeof(" READ: [642] |  [97]  [146]  [0]  [137]  [146]  [17]  [42]  [132] ")-1);
-            uart_write_bytes(UART_NUM_0, "\\", 2);
-            //printf(" READ: [642] |  [97]  [146]  [0]  [137]  [146]  [17]  [42]  [0] ");
-        } else if (x == 2){
-            uart_write_bytes(UART_NUM_0, " READ: [338] |  [97]  [146]  [0]  [137]  [146]  [33]  [42]  [128] ", sizeof(" READ: [642] |  [97]  [146]  [0]  [137]  [146]  [33]  [42]  [128] ")-1);
-            uart_write_bytes(UART_NUM_0, "\\", 2);
-            //printf(" READ: [642] |  [97]  [146]  [0]  [137]  [146]  [33]  [42]  [0] ");
-        } else if (x == 3){
-            uart_write_bytes(UART_NUM_0, " READ: [642] |  [97]  [146]  [0]  [137]  [146]  [49]  [42]  [0] ", sizeof(" READ: [642] |  [97]  [146]  [0]  [137]  [146]  [49]  [42]  [0] ")-1);
-            
-            uart_write_bytes(UART_NUM_0, "\\", 2);
-            //printf(" READ: [642] |  [97]  [146]  [0]  [137]  [146]  [49]  [42]  [0] ");
-
-        } 
-        x = x + 1;
-        if(x>3){
-            x = 0;
-        }
-        vTaskDelay(2000/portTICK_PERIOD_MS);
-        */
+              
         
         if (can_receive(&message, pdMS_TO_TICKS(99000)) == ESP_OK) {
         } else {
@@ -105,11 +49,6 @@ void readFrames(){
     }
     
 }
-void blinkLED(){
-    gpio_set_level(GPIO_NUM_2, 1);
-    vTaskDelay(20/portTICK_PERIOD_MS);
-    gpio_set_level(GPIO_NUM_2, 0);
-}
 
 void processCommand(uint8_t* bytes){
     can_message_t msg;
@@ -120,8 +59,6 @@ void processCommand(uint8_t* bytes){
     memset(frame, 0, 8);
     int framePos = 0;
     if(strstr((char*)bytes, "WRITE:") != 0){
-        //uart_write_bytes(UART_NUM_0, "write frame: ", sizeof("write frame: ")-1);
-        blinkLED();
         uint8_t foundID = 0;
         int i = 0;
         while(i < tmplen-1){
@@ -136,9 +73,6 @@ void processCommand(uint8_t* bytes){
                     } else {  
                         memcpy(id, &bytes[i+1], t-1);
                         uint32_t idByte = atoi((char*)id); //converts our string id array to int for frame
-                        //char str[4];
-                        //sprintf(str, "%zu", idByte);
-                        //uart_write_bytes(UART_NUM_0, (char*)str, t-1);
                         msg.identifier = idByte;
                         i = i + t;
                         foundID = 1;
@@ -170,28 +104,14 @@ void processCommand(uint8_t* bytes){
             i = i+1;
         }
 
-        /*
-        for(int i = 0; i< 8; i++){
-            if(&frame[i] != NULL){
-                char str[12];
-                sprintf(str, "%zu", frame[i]);
-                uart_write_bytes(UART_NUM_0, " ", sizeof(" ")-1);
-                uart_write_bytes(UART_NUM_0, (char*)str, strlen(str));
-                uart_write_bytes(UART_NUM_0, " ", sizeof(" ")-1);
-            } else{
-                break;
-            }
-        }*/
-
-
         int frameLength = 8;
         msg.data_length_code = frameLength;
-        uart_write_bytes(UART_NUM_0, "\\", sizeof("\\")-1);
-        //can_transmit(&msg, 100);
+        can_transmit(&msg, 20);
         
     }
 
 }
+
 //echos on the usb serial connection to pc
 void echo_task(){
     // Configure a temporary buffer for the incoming data
@@ -201,10 +121,11 @@ void echo_task(){
 
     while (1) {
         // Read data from the UART
-        int len = uart_read_bytes(UART_NUM_0, data, (2048 - 1), 100 / portTICK_PERIOD_MS);
+        int len = uart_read_bytes(UART_NUM_0, data, (2048 - 1), 5 / portTICK_PERIOD_MS);
 
         //Write data back to the UART
         if (len) {
+            
             memcpy(tmp+strlen((char*)tmp), data, len);
             int tmplen = strlen((char*)tmp);
             for(int i = 0; i<tmplen; i++){
@@ -228,7 +149,6 @@ void echo_task(){
 }
 
 void app_main() {
-    //esp_log_level_set("*", ESP_LOG_NONE);
     //Initialize configuration structures using macro initializers
     can_general_config_t g_config = CAN_GENERAL_CONFIG_DEFAULT(GPIO_NUM_21, GPIO_NUM_22, CAN_MODE_NORMAL);
     can_timing_config_t t_config = CAN_TIMING_CONFIG_500KBITS();
@@ -269,11 +189,7 @@ void app_main() {
     ESP_ERROR_CHECK(uart_param_config(UART_NUM_0, &uart_config));
     ESP_ERROR_CHECK(uart_set_pin(UART_NUM_0, GPIO_NUM_1, GPIO_NUM_3, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
     uart_set_baudrate(UART_NUM_0, 600000);
-    //xTaskCreate(echo_task, "echo task", 8192, NULL, 10, NULL);
+
     xTaskCreatePinnedToCore(echo_task, "echo task", 8192, NULL, 1, NULL, 0);
     xTaskCreatePinnedToCore(readFrames, "read frames", 8192, NULL, 2, NULL, 1);
-
-    
-
-
 }
