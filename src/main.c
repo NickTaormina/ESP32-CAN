@@ -30,14 +30,14 @@ void readFrames(){
 
         
         if (!(message.flags & CAN_MSG_FLAG_RTR) && filterOn == 0) {
-            printf(" READ:");
-            printf("[%d] | ", message.identifier);
+            printf(" R:");
+            printf("[%d]", message.identifier);
             for (int i = 0; i < message.data_length_code; i++) {
-                printf(" [%d] ", message.data[i]);
+                printf("[%d]", message.data[i]);
             }
         } else if (!(message.flags & CAN_MSG_FLAG_RTR) && filterOn == 1){
             if(message.identifier == filter){
-                printf("READ:");
+                printf("R:");
                 printf("[%d] | ", message.identifier);
                 for (int i = 0; i < message.data_length_code; i++) {
                 printf(" [%d] ", message.data[i]);
@@ -58,7 +58,7 @@ void processCommand(uint8_t* bytes){
     memset(id, 0, 4);
     memset(frame, 0, 8);
     int framePos = 0;
-    if(strstr((char*)bytes, "WRITE:") != 0){
+    if(strstr((char*)bytes, "W:") != 0){
         uint8_t foundID = 0;
         int i = 0;
         while(i < tmplen-1){
@@ -106,8 +106,8 @@ void processCommand(uint8_t* bytes){
 
         int frameLength = 8;
         msg.data_length_code = frameLength;
-        can_transmit(&msg, 20);
-        
+        can_transmit(&msg, 50);
+     
     }
 
 }
@@ -150,7 +150,7 @@ void echo_task(){
 
 void app_main() {
     //Initialize configuration structures using macro initializers
-    can_general_config_t g_config = CAN_GENERAL_CONFIG_DEFAULT(GPIO_NUM_21, GPIO_NUM_22, CAN_MODE_NORMAL);
+    can_general_config_t g_config = CAN_GENERAL_CONFIG_DEFAULT(GPIO_NUM_21, GPIO_NUM_22, CAN_MODE_NO_ACK);
     can_timing_config_t t_config = CAN_TIMING_CONFIG_500KBITS();
     can_filter_config_t f_config = CAN_FILTER_CONFIG_ACCEPT_ALL();
 
@@ -188,7 +188,7 @@ void app_main() {
     ESP_ERROR_CHECK(uart_driver_install(UART_NUM_0, 2048 * 2, 0, 0, NULL, intr_alloc_flags));
     ESP_ERROR_CHECK(uart_param_config(UART_NUM_0, &uart_config));
     ESP_ERROR_CHECK(uart_set_pin(UART_NUM_0, GPIO_NUM_1, GPIO_NUM_3, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-    uart_set_baudrate(UART_NUM_0, 600000);
+    uart_set_baudrate(UART_NUM_0, 921600);
 
     xTaskCreatePinnedToCore(echo_task, "echo task", 8192, NULL, 1, NULL, 0);
     xTaskCreatePinnedToCore(readFrames, "read frames", 8192, NULL, 2, NULL, 1);
