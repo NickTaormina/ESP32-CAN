@@ -11,8 +11,6 @@
 
 #define CAN_MAX_DATA_LEN 128
 
-uint32_t filter;
-uint8_t filterOn = 0;
 
 
 //reads frames from the can receiver
@@ -29,21 +27,13 @@ void readFrames(){
         }
 
         
-        if (!(message.flags & CAN_MSG_FLAG_RTR) && filterOn == 0) {
+        if (!(message.flags & CAN_MSG_FLAG_RTR)) {
             printf(" R:");
             printf("[%d]", message.identifier);
             for (int i = 0; i < message.data_length_code; i++) {
                 printf("[%d]", message.data[i]);
             }
-        } else if (!(message.flags & CAN_MSG_FLAG_RTR) && filterOn == 1){
-            if(message.identifier == filter){
-                printf("R:");
-                printf("[%d] | ", message.identifier);
-                for (int i = 0; i < message.data_length_code; i++) {
-                printf(" [%d] ", message.data[i]);
-            }
-            }
-        }
+        } 
         printf("\\");
         
     }
