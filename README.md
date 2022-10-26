@@ -5,7 +5,7 @@ For use with: https://github.com/NickTaormina/Gauge-Cluster
 
 uses ESP32 and TI sn65hvd230 can-bus transceiver module
 
-outputs frames with message "R:[frame id][byte][byte][byte][byte][byte][byte][byte][byte]\"
+outputs frames with message "R:[frame id][byte][byte][byte][byte][byte][byte][byte][byte]\\"
 
 write can message with command: "W:[frame id][byte][byte][byte][byte][byte][byte][byte][byte] /"
 
