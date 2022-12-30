@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "esp_log.h"
 #include "driver/gpio.h"
-#include "driver/can.h"
+#include "driver/twai.h"
 #include "driver/uart.h"
 #include "freertos/task.h"
 #include "freertos/FreeRTOS.h"
@@ -9,39 +9,59 @@
 #include "stdlib.h"
 
 
-#define CAN_MAX_DATA_LEN 128
+#define TWAI_MAX_DATA_LEN 128
+
+//blinks led
+void blink_task()
+{
+    gpio_pad_select_gpio(2);
+    gpio_set_direction(2, GPIO_MODE_OUTPUT);
+        gpio_set_level(2, 0);
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+        gpio_set_level(2, 1);
+
+    
+}
 
 
-
-//reads frames from the can receiver
+//reads frames from the twai receiver
 void readFrames(){
-    can_message_t message;
-    int x = 0;
+    twai_message_t message;
     //waits for message to be received
     while(1){
               
         
-        if (can_receive(&message, pdMS_TO_TICKS(99000)) == ESP_OK) {
+        if (twai_receive(&message, pdMS_TO_TICKS(99000)) == ESP_OK) {
         } else {
             printf("Failed to receive message\n");
         }
 
-        
-        if (!(message.flags & CAN_MSG_FLAG_RTR)) {
-            printf(" R:");
-            printf("[%d]", message.identifier);
+        if (!(message.flags)) {
+            printf("R:");
+            fflush(stdout);
+            //prints the id as hex value
+            printf("%03X", message.identifier);
+            fflush(stdout);
             for (int i = 0; i < message.data_length_code; i++) {
-                printf("[%d]", message.data[i]);
+                printf("%02X", message.data[i]);
+                fflush(stdout);
             }
+            printf("\\");
+            fflush(stdout);
+            //}
         } 
-        printf("\\");
+        
         
     }
+
+
     
 }
 
+
+
 void processCommand(uint8_t* bytes){
-    can_message_t msg;
+    twai_message_t msg;
     int tmplen = strlen((char*) bytes);
     uint8_t* id = malloc(4);
     uint8_t* frame = malloc(8);
@@ -49,6 +69,7 @@ void processCommand(uint8_t* bytes){
     memset(frame, 0, 8);
     int framePos = 0;
     if(strstr((char*)bytes, "W:") != 0){
+        //blink_task();
         uint8_t foundID = 0;
         int i = 0;
         while(i < tmplen-1){
@@ -64,6 +85,7 @@ void processCommand(uint8_t* bytes){
                         memcpy(id, &bytes[i+1], t-1);
                         uint32_t idByte = atoi((char*)id); //converts our string id array to int for frame
                         msg.identifier = idByte;
+                        //printf("%d\n", msg.identifier);
                         i = i + t;
                         foundID = 1;
                         break;
@@ -92,11 +114,13 @@ void processCommand(uint8_t* bytes){
             }
 
             i = i+1;
+            
         }
 
         int frameLength = 8;
         msg.data_length_code = frameLength;
-        can_transmit(&msg, 50);
+        twai_transmit(&msg, 20/portTICK_PERIOD_MS);
+        
      
     }
 
@@ -139,30 +163,7 @@ void echo_task(){
 }
 
 void app_main() {
-    //Initialize configuration structures using macro initializers
-    can_general_config_t g_config = CAN_GENERAL_CONFIG_DEFAULT(GPIO_NUM_21, GPIO_NUM_22, CAN_MODE_NO_ACK);
-    can_timing_config_t t_config = CAN_TIMING_CONFIG_500KBITS();
-    can_filter_config_t f_config = CAN_FILTER_CONFIG_ACCEPT_ALL();
-
-    //Install CAN driver
-    if (can_driver_install(&g_config, &t_config, &f_config) == ESP_OK) {
-        printf("Driver installed\n");
-    } else {
-        printf("Failed to install driver\n");
-        return;
-    }
-
-    //Start CAN driver
-    if (can_start() == ESP_OK) {
-        printf("Driver started\n");
-    } else {
-        printf("Failed to start driver\n");
-        return;
-    }
-
-    //onboard led
-    gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
-
+    
     /* Configure parameters of an UART driver,
      * communication pins and install the driver */
     uart_config_t uart_config = {
@@ -175,11 +176,39 @@ void app_main() {
     int intr_alloc_flags = 0;
 
     //initialize usb uart connection
-    ESP_ERROR_CHECK(uart_driver_install(UART_NUM_0, 2048 * 2, 0, 0, NULL, intr_alloc_flags));
+    ESP_ERROR_CHECK(uart_driver_install(UART_NUM_0, 4096 * 2, 0, 0, NULL, intr_alloc_flags));
     ESP_ERROR_CHECK(uart_param_config(UART_NUM_0, &uart_config));
     ESP_ERROR_CHECK(uart_set_pin(UART_NUM_0, GPIO_NUM_1, GPIO_NUM_3, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-    uart_set_baudrate(UART_NUM_0, 921600);
+    uart_set_baudrate(UART_NUM_0, 2000000);
+    //Initialize configuration structures using macro initializers
+    twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(GPIO_NUM_21, GPIO_NUM_22, TWAI_MODE_NO_ACK);
+    twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
+    twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
-    xTaskCreatePinnedToCore(echo_task, "echo task", 8192, NULL, 1, NULL, 0);
-    xTaskCreatePinnedToCore(readFrames, "read frames", 8192, NULL, 2, NULL, 1);
+    //Install TWAI driver
+    if (twai_driver_install(&g_config, &t_config, &f_config) == ESP_OK) {
+        printf("Driver installed\n");
+    } else {
+        printf("Failed to install driver\n");
+        return;
+    }
+
+    //Start TWAI driver
+    if (twai_start() == ESP_OK) {
+        printf("Driver started\n");
+    } else {
+        printf("Failed to start driver\n");
+        return;
+    }
+
+    //onboard led
+    gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
+
+    //remove printf buffer
+    setbuf(stdout, NULL);
+
+
+
+    xTaskCreatePinnedToCore(echo_task, "echo task", 8192, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(readFrames, "read frames", 4*16384, NULL, 2, NULL, 0);
 }
