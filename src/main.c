@@ -40,8 +40,10 @@ void readFrames(){
             printf("R:");
             fflush(stdout);
             //prints the id as hex value
+            if(message.identifier){
             printf("%03X", message.identifier);
             fflush(stdout);
+            }
             for (int i = 0; i < message.data_length_code; i++) {
                 printf("%02X", message.data[i]);
                 fflush(stdout);
@@ -61,14 +63,16 @@ void readFrames(){
 
 
 void processCommand(uint8_t* bytes){
+   // printf("process");
     twai_message_t msg;
-    int tmplen = strlen((char*) bytes);
+    int tmplen = strlen((char*)bytes);
     uint8_t* id = malloc(4);
     uint8_t* frame = malloc(8);
     memset(id, 0, 4);
     memset(frame, 0, 8);
     int framePos = 0;
     if(strstr((char*)bytes, "W:") != 0){
+        //printf("found w");
         //blink_task();
         uint8_t foundID = 0;
         int i = 0;
@@ -77,49 +81,71 @@ void processCommand(uint8_t* bytes){
             
             //use strNcmp when finding i single byte
             if(strncmp((char*)&bytes[i], "[", 1) == 0 && foundID == 0){
-                int t = 1;  
+                //printf("looking for id");
+                int t = 1;
+                  
                 for(int x = 1; x<12; x++){
+                    if(i+x < tmplen-1){
                     if(strncmp((char*)&bytes[i+x], "]",1) != 0){
                         t = t + 1;
                     } else {  
+                        if(t <6){
                         memcpy(id, &bytes[i+1], t-1);
                         uint32_t idByte = atoi((char*)id); //converts our string id array to int for frame
                         msg.identifier = idByte;
+                       // printf("found id");
                         //printf("%d\n", msg.identifier);
                         i = i + t;
                         foundID = 1;
                         break;
+                        } else {
+                            return;
+                        }
+                    }
                     }
                 }
                 
             } 
             //find the data
             if(strncmp((char*)&bytes[i], "[", 1) == 0 && foundID == 1){
-                uint8_t* tmp = malloc(3);
+                //printf("looking for byte");
+                uint8_t* tmp = malloc(4);
+                int tempPos = 0;
                 for(int x = 1; x< 5; x++){
+                    if(i+x < tmplen-1){
                     if(strncmp((char*)&bytes[i+x], "]",1) != 0){
                         if(x<4){
-                        memcpy(&tmp[x-1], &bytes[i+x], 1);
+                        memcpy(&tmp[tempPos], &bytes[i+x], 1);
+                        tempPos = tempPos + 1;
                         }
                     } else{
                         uint8_t byte = atoi((char*) tmp);
-                        msg.data[framePos] = byte;
-                        memcpy(&frame[framePos], &byte, 1);
-                        i = i+x;
-                        framePos = framePos + 1;
+                        if(framePos <8){
+                            //printf("found byte");
+                            msg.data[framePos] = byte;
+                            memcpy(&frame[framePos], &byte, 1);
+                            i = i+x;
+                            framePos = framePos + 1;
+                        }
                         break;
+                    }
                     }
                 }        
                 
             }
+            if(framePos >= 8){
 
+                break;
+            }
             i = i+1;
             
         }
-
-        int frameLength = 8;
-        msg.data_length_code = frameLength;
+        if(framePos <= 8){
+           // printf("transmitting message");
+        msg.data_length_code = framePos;
         twai_transmit(&msg, 20/portTICK_PERIOD_MS);
+    }
+        
         
      
     }
@@ -139,25 +165,28 @@ void echo_task(){
 
         //Write data back to the UART
         if (len) {
-            
+            //printf("read");
             memcpy(tmp+strlen((char*)tmp), data, len);
             int tmplen = strlen((char*)tmp);
             for(int i = 0; i<tmplen; i++){
                 if(strcmp((char*)&tmp[i], "/") == 0){
-                        uint8_t* tmp2 = malloc(2048);
-                        memcpy(tmp2, tmp, strlen((char*)tmp)-1);
-                        processCommand(tmp2);
+                        //printf("found slash");
+                        //uint8_t* tmp2 = malloc(2050);
+                        //memset(tmp2,0,2050);
+                        //memcpy(tmp2, tmp, strlen((char*)tmp)-1);
+                        //tmp2[strlen((char*)tmp)]= '\0';
+                        processCommand(tmp);
                         memset(tmp, 0, 2048);
                         memset(data,0,2048);
+                        //printf("command processed");
                         uart_flush_input(UART_NUM_0);
                         break;
 
                 }
             }
             //data[len] = '\0';
-            if(strlen((char*)data) > 1900){
-                memset(data, 0, 2048);
-            }
+
+            memset(data, 0, 2048);
             
         }
     }
