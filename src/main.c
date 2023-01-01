@@ -130,8 +130,8 @@ void processCommand(uint8_t* bytes){
 void echo_task(){
     // Configure a temporary buffer for the incoming data
     uint8_t *data =  malloc(2048);
-    uint8_t *tmp =  malloc(1024);
-    memset(tmp, 0, 1024);
+    uint8_t *tmp =  malloc(2048);
+    memset(tmp, 0, 2048);
 
     while (1) {
         // Read data from the UART
@@ -144,16 +144,17 @@ void echo_task(){
             int tmplen = strlen((char*)tmp);
             for(int i = 0; i<tmplen; i++){
                 if(strcmp((char*)&tmp[i], "/") == 0){
-                        uint8_t* tmp2 = malloc(1024);
+                        uint8_t* tmp2 = malloc(2048);
                         memcpy(tmp2, tmp, strlen((char*)tmp)-1);
                         processCommand(tmp2);
-                        memset(tmp, 0, 1024);
+                        memset(tmp, 0, 2048);
+                        memset(data,0,2048);
                         uart_flush_input(UART_NUM_0);
                         break;
 
                 }
             }
-            data[len] = '\0';
+            //data[len] = '\0';
             if(strlen((char*)data) > 1900){
                 memset(data, 0, 2048);
             }
@@ -179,7 +180,7 @@ void app_main() {
     ESP_ERROR_CHECK(uart_driver_install(UART_NUM_0, 4096 * 2, 0, 0, NULL, intr_alloc_flags));
     ESP_ERROR_CHECK(uart_param_config(UART_NUM_0, &uart_config));
     ESP_ERROR_CHECK(uart_set_pin(UART_NUM_0, GPIO_NUM_1, GPIO_NUM_3, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-    uart_set_baudrate(UART_NUM_0, 2000000);
+    uart_set_baudrate(UART_NUM_0, 921600);
     //Initialize configuration structures using macro initializers
     twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(GPIO_NUM_21, GPIO_NUM_22, TWAI_MODE_NO_ACK);
     twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
