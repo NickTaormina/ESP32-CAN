@@ -31,7 +31,6 @@ void slcan_init(void)
     if (twai_start() == ESP_OK) {
         printf("Driver started\n");
         busIsRunning = true;
-        vTaskResume(readHandle);
     } else {
         printf("Failed to start driver\n");
         return;
@@ -129,18 +128,27 @@ void slcan_receiveFrame(twai_message_t message){
     slcan_ack();            
 }
 
+void setFilter(uint8_t* bytes){
+    uint32_t frameID = 0;
+    //gets the frame id from the ascii hex codes
+    for(int i = 0; i<3; i++){
+        //printf("id: %02X", bytes[i]);
+        frameID = (frameID<< 4) | (asciiToHex(bytes[i+1]));
+    }
+}
+
 void processSlCommand(uint8_t* bytes){
     //printf("process sl command: %02X", bytes[0]); 
     switch((char)bytes[0]){
         case 'O':
             slcan_init();
+            vTaskResume(readHandle);
             break;
         case 'C':
             slcan_close();
             slcan_ack();
             break;
         case 't':
-        
             send_can(bytes);
             slcan_ack();
             break;

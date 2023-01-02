@@ -66,6 +66,8 @@ void readFrames(){
         twai_get_status_info(&test);
         if(test.state == TWAI_STATE_RUNNING){
             break; 
+        } else {
+            printf("bus not open");
         }
     }
     twai_message_t message;
@@ -110,7 +112,7 @@ void app_main() {
     //remove printf buffer
     setbuf(stdout, NULL);
 
-    
+    slcan_init();
     xTaskCreatePinnedToCore(echo_task, "echo task", 8192, NULL, 1, NULL, 1);
     xTaskCreatePinnedToCore(readFrames, "read frames", 8192, NULL, 2, &readHandle, 0);
 }
