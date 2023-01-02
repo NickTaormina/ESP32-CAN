@@ -11,6 +11,7 @@
 
 
 #define TWAI_MAX_DATA_LEN 128
+TaskHandle_t readHandle = NULL;
 
 //blinks led
 void blink_task()
@@ -60,21 +61,25 @@ void echo_task(){
 }
 //reads frames from the twai receiver
 void readFrames(){
+    while(1){
+        twai_status_info_t test;
+        twai_get_status_info(&test);
+        if(test.state == TWAI_STATE_RUNNING){
+            break; 
+        }
+    }
     twai_message_t message;
     //waits for message to be received
     while(1){
-        if (twai_receive(&message, pdMS_TO_TICKS(99000)) == ESP_OK) { 
-            if (!(message.flags)) {
-                
-              slcan_receiveFrame(message);
-                
-                
-            } 
-        } else {
-            printf("Failed to receive message\n");
+        if(busIsRunning == true){
+            if (twai_receive(&message, pdMS_TO_TICKS(99000)) == ESP_OK) { 
+                if (!(message.flags)) {                  
+                    slcan_receiveFrame(message); 
+                } 
+            } else {
+                slcan_nack();
+            }
         }
-
-        
     }
 
 }
@@ -104,9 +109,8 @@ void app_main() {
 
     //remove printf buffer
     setbuf(stdout, NULL);
-    slcan_init();
 
-
+    
     xTaskCreatePinnedToCore(echo_task, "echo task", 8192, NULL, 1, NULL, 1);
-    xTaskCreatePinnedToCore(readFrames, "read frames", 8192, NULL, 2, NULL, 0);
+    xTaskCreatePinnedToCore(readFrames, "read frames", 8192, NULL, 2, &readHandle, 0);
 }

@@ -21,8 +21,13 @@
 #define SLCAN_FRAME_LEN_OFFSET 4
 #define SLCAN_FRAME_DATA_OFFSET 5
 
+extern TaskHandle_t readHandle;
+
+bool busIsRunning;
 
 void slcan_init(void);
+void slcan_ack();
+void slcan_nack();
 void slcan_receiveFrame(twai_message_t message);
 void processSlCommand(uint8_t* bytes);
 

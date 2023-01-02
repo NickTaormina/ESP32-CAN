@@ -30,6 +30,8 @@ void slcan_init(void)
     //Start TWAI driver
     if (twai_start() == ESP_OK) {
         printf("Driver started\n");
+        busIsRunning = true;
+        vTaskResume(readHandle);
     } else {
         printf("Failed to start driver\n");
         return;
@@ -38,6 +40,10 @@ void slcan_init(void)
 }
 
 void slcan_close(void){
+    printf("close driver");
+    busIsRunning = false;
+    vTaskSuspend(readHandle);
+    twai_stop();
     twai_driver_uninstall();
 }
 int asciiToHex(uint8_t ascii_hex_digit){
@@ -55,9 +61,9 @@ void blink_task1()
 {
     gpio_pad_select_gpio(2);
     gpio_set_direction(2, GPIO_MODE_OUTPUT);
-        gpio_set_level(2, 0);
-        vTaskDelay(50 / portTICK_PERIOD_MS);
-        gpio_set_level(2, 1);
+    gpio_set_level(2, 0);
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+    gpio_set_level(2, 1);
     
 }
 //parses and sends a frame given message from slcan
