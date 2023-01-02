@@ -14,6 +14,7 @@ void slcan_nack(){
 void slcan_init(void)
 {
     twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(SL_CAN_TX_GPIO, SL_CAN_RX_GPIO, TWAI_MODE_NO_ACK);
+    g_config.rx_queue_len = 500;
     twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
     twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
     
@@ -108,28 +109,22 @@ void send_can(uint8_t* bytes){
         }
     }
 }
-
-//processes received frame and sends it to slcan
-void slcan_receiveFrame(twai_message_t message){
-
-    printf("t");
-    fflush(stdout);
-    //prints the id as hex value
-    if(message.identifier){
-        printf("%03X", message.identifier);
-        fflush(stdout);
+// Create a buffer to hold the string representation of the CAN frame data
+#define CAN_FRAME_BUFFER_SIZE 32
+char can_frame_buffer[CAN_FRAME_BUFFER_SIZE];
+void slcan_receiveFrame(twai_message_t message)
+{
+    // Create a string representation of the CAN frame data using snprintf
+    int len = snprintf(can_frame_buffer, CAN_FRAME_BUFFER_SIZE, "t%03X%01X", message.identifier, message.data_length_code);
+    for (int i = 0; i < message.data_length_code; i++)
+    {
+        len += snprintf(can_frame_buffer + len, CAN_FRAME_BUFFER_SIZE - len, "%02X", message.data[i]);
     }
-    //prints the data length code
-    printf("%01X", message.data_length_code);
-    fflush(stdout);
-    
 
-    //writes the data as hex values
-    for (int i = 0; i < message.data_length_code; i++) {
-        printf("%02X", message.data[i]);
-        fflush(stdout);
-    }
-    slcan_ack();            
+    // Print the CAN frame data to the log
+    printf("%s\r", can_frame_buffer);
+
+   // slcan_ack();
 }
 
 void setFilter(uint8_t* bytes){

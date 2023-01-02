@@ -13,6 +13,8 @@
 #define TWAI_MAX_DATA_LEN 128
 TaskHandle_t readHandle = NULL;
 
+static QueueHandle_t can_frame_queue;
+
 //blinks led
 void blink_task()
 {
@@ -72,13 +74,15 @@ void readFrames(){
         }
     }
     twai_message_t message;
+    twai_status_info_t test;
     //waits for message to be received
     while(1){
         if(busIsRunning == true){
-            if (twai_receive(&message, pdMS_TO_TICKS(99000)) == ESP_OK) { 
-                if (!(message.flags)) {                  
-                    slcan_receiveFrame(message); 
-                } 
+            if (twai_receive(&message, pdMS_TO_TICKS(99000)) == ESP_OK) {             
+                slcan_receiveFrame(message); 
+                twai_get_status_info(&test);
+                //uint32_t missed = test.rx_error_counter;
+                //printf("missed: %d : %d : %d \n", test.rx_error_counter, test.rx_missed_count, test.rx_overrun_count);
             } else {
                 slcan_nack();
             }
@@ -91,7 +95,7 @@ void app_main() {
     /* Configure parameters of an UART driver,
      * communication pins and install the driver */
     uart_config_t uart_config = {
-        .baud_rate = 115200,
+        .baud_rate = 921600,
         .data_bits = UART_DATA_8_BITS,
         .parity    = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
@@ -113,7 +117,8 @@ void app_main() {
     //remove printf buffer
     setbuf(stdout, NULL);
 
+    //xQueueCreate(20, sizeof(twai_message_t));
     slcan_init();
     xTaskCreatePinnedToCore(echo_task, "echo task", 8192, NULL, 1, NULL, 1);
-    xTaskCreatePinnedToCore(readFrames, "read frames", 8192, NULL, 2, &readHandle, 0);
+    xTaskCreatePinnedToCore(readFrames, "read frames", 8192, NULL, configMAX_PRIORITIES, &readHandle, 0);
 }
