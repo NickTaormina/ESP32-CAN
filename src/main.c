@@ -45,10 +45,11 @@ void echo_task(){
             int tmplen = strlen((char*)tmp);
             for(int i = 0; i<tmplen; i++){
                 if(strcmp((char*)&tmp[i], "\r") == 0){
+                        uart_flush_input(UART_NUM_0);
                         processSlCommand(tmp);
                         memset(tmp, 0, 2048);
                         memset(data,0,2048);
-                        uart_flush_input(UART_NUM_0);
+                        
                         break;
 
                 }

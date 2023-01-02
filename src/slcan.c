@@ -113,17 +113,21 @@ void send_can(uint8_t* bytes){
 void slcan_receiveFrame(twai_message_t message){
 
     printf("t");
+    fflush(stdout);
     //prints the id as hex value
     if(message.identifier){
         printf("%03X", message.identifier);
+        fflush(stdout);
     }
     //prints the data length code
     printf("%01X", message.data_length_code);
+    fflush(stdout);
     
 
     //writes the data as hex values
     for (int i = 0; i < message.data_length_code; i++) {
         printf("%02X", message.data[i]);
+        fflush(stdout);
     }
     slcan_ack();            
 }
