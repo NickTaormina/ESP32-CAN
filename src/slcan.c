@@ -15,6 +15,7 @@ void slcan_init(void)
 {
     twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(SL_CAN_TX_GPIO, SL_CAN_RX_GPIO, TWAI_MODE_NO_ACK);
     g_config.rx_queue_len = 500;
+    g_config.intr_flags = ESP_INTR_FLAG_IRAM;
     twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
     twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
     
@@ -46,14 +47,31 @@ void slcan_close(void){
     twai_stop();
     twai_driver_uninstall();
 }
-int asciiToHex(uint8_t ascii_hex_digit){
-    int number = 0;
-    if (ascii_hex_digit >= '0' && ascii_hex_digit <= '9') {
-        number = ascii_hex_digit - '0';
-    } else if (ascii_hex_digit >= 'A' && ascii_hex_digit <= 'F') {
-        number = ascii_hex_digit - 'A' + 10;
-    }
-  return number;
+// Lookup table to map ASCII characters to their corresponding hexadecimal values
+const uint8_t ascii_hex_lookup[256] =
+{
+    ['0'] = 0,
+    ['1'] = 1,
+    ['2'] = 2,
+    ['3'] = 3,
+    ['4'] = 4,
+    ['5'] = 5,
+    ['6'] = 6,
+    ['7'] = 7,
+    ['8'] = 8,
+    ['9'] = 9,
+    ['A'] = 10,
+    ['B'] = 11,
+    ['C'] = 12,
+    ['D'] = 13,
+    ['E'] = 14,
+    ['F'] = 15,
+};
+
+int asciiToHex(uint8_t ascii_hex_digit)
+{
+    // Look up the hexadecimal value in the lookup table
+    return ascii_hex_lookup[ascii_hex_digit];
 }
 
 //blinks led

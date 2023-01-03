@@ -74,21 +74,17 @@ void readFrames(){
         }
     }
     twai_message_t message;
-    twai_status_info_t test;
     //waits for message to be received
     while(1){
         if(busIsRunning == true){
             if (twai_receive(&message, pdMS_TO_TICKS(99000)) == ESP_OK) {             
                 slcan_receiveFrame(message); 
-                twai_get_status_info(&test);
-                //uint32_t missed = test.rx_error_counter;
                 //printf("missed: %d : %d : %d \n", test.rx_error_counter, test.rx_missed_count, test.rx_overrun_count);
             } else {
                 slcan_nack();
             }
         }
     }
-
 }
 void app_main() {
     
