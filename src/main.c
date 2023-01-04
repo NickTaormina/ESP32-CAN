@@ -28,36 +28,38 @@ void blink_task()
 }
 
 
+#define BUFFER_SIZE 2048
 
+static uint8_t data[BUFFER_SIZE];
+static uint8_t tmp[BUFFER_SIZE];
 
 //looks for uart commands and sends them to slcan
 void echo_task(){
     // Configure a temporary buffer for the incoming data
-    uint8_t *data =  malloc(2048);
-    uint8_t *tmp =  malloc(2048);
-    memset(tmp, 0, 2048);
-
+    // Initialize the buffers
+    memset(data, 0, BUFFER_SIZE);
+    memset(tmp, 0, BUFFER_SIZE);
+    int tmp_len = 0;
     while (1) {
         // Read data from the UART
-        int len = uart_read_bytes(UART_NUM_0, data, (2048 - 1), 5 / portTICK_PERIOD_MS);
-
+        int len = uart_read_bytes(UART_NUM_0, data, (BUFFER_SIZE - 1), 5 / portTICK_PERIOD_MS);
         if (len) {
-            //printf("read");
-            memcpy(tmp+strlen((char*)tmp), data, len);
-            int tmplen = strlen((char*)tmp);
-            for(int i = 0; i<tmplen; i++){
-                if(strcmp((char*)&tmp[i], "\r") == 0){
-                        uart_flush_input(UART_NUM_0);
-                        processSlCommand(tmp);
-                        memset(tmp, 0, 2048);
-                        memset(data,0,2048);
-                        
-                        break;
-
+            memcpy(tmp + tmp_len, data, len);
+            tmp_len += len;
+            for(int i = 0; i<tmp_len; i++){
+                if (tmp[i] == '\r') {
+                    // Process the command
+                    processSlCommand(tmp);
+                    // Reset the tmp buffer
+                    tmp_len = 0;
+                    memset(tmp, 0, BUFFER_SIZE);
+                    // Flush the UART input buffer
+                    uart_flush_input(UART_NUM_0);
+                    break;
                 }
             }
-
-            memset(data, 0, 2048);
+            // Clear the data buffer
+            memset(data, 0, BUFFER_SIZE);
             
         }
     }

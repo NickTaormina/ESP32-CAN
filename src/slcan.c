@@ -88,42 +88,33 @@ void blink_task1()
 void send_can(uint8_t* bytes){
     twai_message_t msg;
     uint32_t frameID = 0;
-    //printf("sendCan\n");
     //gets the frame id from the ascii hex codes
     for(int i = 0; i<3; i++){
-        //printf("id: %02X", bytes[i]);
         frameID = (frameID<< 4) | (asciiToHex(bytes[i+1]));
     }
     if(frameID != 0){
         msg.identifier = frameID;
         msg.flags = 0;
         
-        //gets message 
+        //gets message length
         int frameLen = asciiToHex(bytes[SLCAN_FRAME_LEN_OFFSET]);
 
-        //printf("frame id: %03X \n", msg.identifier);
-       // printf("frame len: %02X \n", frameLen);
+
         //checks if the frame is a standard frame
         if(frameLen <= 8){
             msg.data_length_code = frameLen;
             //gets the data from the ascii hex codes
             for(int i = 0; i<frameLen; i++){
                 msg.data[i] = (asciiToHex(bytes[SLCAN_FRAME_DATA_OFFSET + i*2]) << 4 | asciiToHex(bytes[SLCAN_FRAME_DATA_OFFSET + i*2 + 1]));
-                //printf("byte: %02X \n", msg.data[i]);
+
             }
 
-            //printf("sending: %03X : ", msg.identifier);
-            
-            //for(int i = 0; i<frameLen; i++){
-              //  printf("%02X ",msg.data[i]);
-           // }
-            //printf("\n");
             //sends the frame
             if(twai_transmit(&msg, 20/portTICK_PERIOD_MS) == ESP_OK){
-               // printf("transmitted\n");
+
             };
         } else {
-            //printf("too long\n");
+
         }
     }
 }
